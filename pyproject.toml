@@ -1,7 +1,7 @@
 [project]
 name = "comfy-depthdiff"
 description = "Depth/luma-driven Differential Diffusion mask node for ComfyUI. One node: image in, model + latent with noise mask out."
-version = "1.1.0"
+version = "1.1.1"
 license = { file = "LICENSE" }
 dependencies = []
 
