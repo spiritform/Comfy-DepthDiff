@@ -2,9 +2,34 @@
 
 A single ComfyUI node that turns a source image into a luma/depth-driven **Differential Diffusion** mask — dark regions get more diffusion, light regions get preserved (or vice versa). Bakes in the model patch, VAE encode, and mask preview.
 
+![DepthDiff node](docs/screenshot.png)
+
 ## What it does
 
 Differential Diffusion selectively re-noises regions of a latent based on a grayscale mask. `DepthDiff` builds that mask from your input image — either directly from luma, or by running Depth Anything V2 first — and applies everything (model patch, latent noise mask) in one node.
+
+## Install
+
+**Via ComfyUI Manager (recommended):** search `DepthDiff` and click Install.
+
+**Manual:**
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/spiritform/Comfy-DepthDiff.git
+```
+
+Restart ComfyUI.
+
+## Dependencies
+
+Core node has **no external Python dependencies** — works out of the box.
+
+**Optional (only needed for `depth_mode`):**
+- [`comfyui_controlnet_aux`](https://github.com/Fannovel16/comfyui_controlnet_aux) must be installed.
+- Depth Anything V2 weights (`depth_anything_v2_vitl.pth`, `_vitb`, `_vits`, or `_vitg`) in `ComfyUI/models/depthanything/`. Auto-downloads from HuggingFace on first use.
+
+If `depth_mode` is off, feed a pre-computed depth or luma map into the `image` input directly and neither is required.
 
 ## Inputs
 
@@ -38,21 +63,6 @@ Load Image ─┐
 Checkpoint ─┤              ─► latent ─┘
     └── VAE ┘
 ```
-
-## Depth mode
-
-Requires [`comfyui_controlnet_aux`](https://github.com/Fannovel16/comfyui_controlnet_aux) to be installed and its Depth Anything V2 weights present (`depth_anything_v2_vitl.pth` etc. in `models/depthanything/`). Otherwise leave `depth_mode` off and feed a pre-computed depth or luma map as the image.
-
-## Install
-
-Clone into your ComfyUI `custom_nodes/`:
-
-```bash
-cd ComfyUI/custom_nodes
-git clone https://github.com/spiritform/Comfy-DepthDiff.git
-```
-
-Restart ComfyUI.
 
 ## License
 
