@@ -10,7 +10,6 @@ import folder_paths
 
 
 def _to_luma(image: torch.Tensor) -> torch.Tensor:
-    # image: (B, H, W, C) in [0,1]
     if image.shape[-1] == 1:
         return image[..., 0]
     r, g, b = image[..., 0], image[..., 1], image[..., 2]
@@ -34,35 +33,33 @@ def _gaussian_blur(mask: torch.Tensor, radius: int) -> torch.Tensor:
 
 
 _DEPTH_CKPTS = [
-    "depth_anything_v2_vitl.pth",
-    "depth_anything_v2_vitb.pth",
-    "depth_anything_v2_vits.pth",
-    "depth_anything_v2_vitg.pth",
+    "depth_anything_v2_vitl_fp32.safetensors",
+    "depth_anything_v2_vitl_fp16.safetensors",
+    "depth_anything_v2_vitb_fp32.safetensors",
+    "depth_anything_v2_vitb_fp16.safetensors",
+    "depth_anything_v2_vits_fp32.safetensors",
+    "depth_anything_v2_vits_fp16.safetensors",
+    "depth_anything_v2_vitg_fp32.safetensors",
 ]
 
 
-def _run_depth_anything_v2(image: torch.Tensor, ckpt_name: str, resolution: int) -> torch.Tensor:
+def _run_depth_anything_v2_kijai(image: torch.Tensor, ckpt_name: str) -> torch.Tensor:
     try:
-        import comfy.model_management as model_management
-        from custom_controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
-        from custom_controlnet_aux.util import HWC3
-    except ImportError as e:
-        raise RuntimeError(
-            "depth_mode=True requires comfyui_controlnet_aux (and its DepthAnythingV2 weights) to be installed."
-        ) from e
+        from nodes import NODE_CLASS_MAPPINGS
+    except ImportError:
+        NODE_CLASS_MAPPINGS = {}
 
-    model = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
-    try:
-        out_batch = []
-        for i in range(image.shape[0]):
-            arr = (image[i].detach().cpu().numpy() * 255.0).clip(0, 255).astype("uint8")
-            arr = HWC3(arr)
-            depth = model(arr, output_type="np", detect_resolution=resolution, max_depth=1)
-            depth = HWC3(depth)
-            out_batch.append(torch.from_numpy(depth.astype("float32") / 255.0))
-        return torch.stack(out_batch, dim=0)
-    finally:
-        del model
+    Loader = NODE_CLASS_MAPPINGS.get("DownloadAndLoadDepthAnythingV2Model")
+    Inference = NODE_CLASS_MAPPINGS.get("DepthAnything_V2")
+    if Loader is None or Inference is None:
+        raise RuntimeError(
+            "depth_mode requires Kijai's comfyui-depthanythingv2 pack. "
+            "Install via Manager (search 'DepthAnythingV2')."
+        )
+
+    (da_model,) = Loader().loadmodel(model=ckpt_name)
+    (depth_image,) = Inference().process(da_model=da_model, images=image)
+    return depth_image
 
 
 def _make_diff_diffusion_fn(multiplier: float):
@@ -92,8 +89,7 @@ class DepthDiff:
                 "image": ("IMAGE",),
                 "vae": ("VAE",),
                 "depth_mode": ("BOOLEAN", {"default": False}),
-                "depth_ckpt": (_DEPTH_CKPTS, {"default": "depth_anything_v2_vitl.pth"}),
-                "depth_resolution": ("INT", {"default": 512, "min": 64, "max": 2048, "step": 64}),
+                "depth_ckpt": (_DEPTH_CKPTS, {"default": "depth_anything_v2_vitl_fp32.safetensors"}),
                 "invert": ("BOOLEAN", {"default": True}),
                 "black_point": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "white_point": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -112,7 +108,7 @@ class DepthDiff:
     CATEGORY = "conditioning/depthdiff"
     OUTPUT_NODE = True
 
-    def build(self, model, image, vae, depth_mode, depth_ckpt, depth_resolution,
+    def build(self, model, image, vae, depth_mode, depth_ckpt,
               invert, black_point, white_point, gamma,
               brightness, contrast, blur_radius, strength,
               diff_diffusion_multiplier):
@@ -120,7 +116,7 @@ class DepthDiff:
 
         mask_source = image
         if depth_mode:
-            mask_source = _run_depth_anything_v2(image, depth_ckpt, int(depth_resolution))
+            mask_source = _run_depth_anything_v2_kijai(image, depth_ckpt)
 
         m = _to_luma(mask_source).clamp(0.0, 1.0)
 
