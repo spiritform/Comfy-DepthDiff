@@ -100,6 +100,9 @@ class DepthDiff:
                 "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "diff_diffusion_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.05}),
             },
+            "optional": {
+                "mask": ("MASK",),
+            },
         }
 
     RETURN_TYPES = ("MODEL", "LATENT", "MASK", "IMAGE")
@@ -111,7 +114,7 @@ class DepthDiff:
     def build(self, model, image, vae, depth_mode, depth_ckpt,
               invert, black_point, white_point, gamma,
               brightness, contrast, blur_radius, strength,
-              diff_diffusion_multiplier):
+              diff_diffusion_multiplier, mask=None):
         latent = {"samples": vae.encode(image[:, :, :, :3])}
 
         mask_source = image
@@ -139,6 +142,22 @@ class DepthDiff:
 
         m = _gaussian_blur(m, int(blur_radius))
         m = (m * float(strength)).clamp(0.0, 1.0)
+
+        if mask is not None:
+            gate = mask
+            if gate.dim() == 2:
+                gate = gate.unsqueeze(0)
+            gate = gate.to(m.device, m.dtype)
+            if gate.shape[-2:] != m.shape[-2:]:
+                gate = F.interpolate(
+                    gate.unsqueeze(1), size=m.shape[-2:], mode="bilinear", align_corners=False
+                ).squeeze(1)
+            if gate.shape[0] != m.shape[0]:
+                if gate.shape[0] == 1:
+                    gate = gate.expand(m.shape[0], -1, -1)
+                else:
+                    gate = gate[:m.shape[0]]
+            m = (m * gate).clamp(0.0, 1.0)
 
         preview = m.unsqueeze(-1).repeat(1, 1, 1, 3)
 
