@@ -26,8 +26,8 @@ Restart ComfyUI.
 Core node has **no external Python dependencies** — works out of the box.
 
 **Optional (only needed for `depth_mode`):**
-- [`comfyui_controlnet_aux`](https://github.com/Fannovel16/comfyui_controlnet_aux) must be installed.
-- Depth Anything V2 weights (`depth_anything_v2_vitl.pth`, `_vitb`, `_vits`, or `_vitg`) in `ComfyUI/models/depthanything/`. Auto-downloads from HuggingFace on first use.
+- [Kijai's `comfyui-depthanythingv2`](https://github.com/kijai/ComfyUI-DepthAnythingV2) must be installed (via ComfyUI Manager or manual clone).
+- Depth Anything V2 safetensors weights auto-download to `ComfyUI/models/depthanything/` from [Kijai/DepthAnythingV2-safetensors](https://huggingface.co/Kijai/DepthAnythingV2-safetensors) on first use.
 
 If `depth_mode` is off, feed a pre-computed depth or luma map into the `image` input directly and neither is required.
 
@@ -38,9 +38,8 @@ If `depth_mode` is off, feed a pre-computed depth or luma map into the `image` i
 - `vae` — VAE (used for the internal encode)
 
 **Widgets:**
-- `depth_mode` — if on, runs Depth Anything V2 on the image before extracting luma
-- `depth_ckpt` — which Depth Anything V2 checkpoint to use
-- `depth_resolution` — resolution for depth estimation
+- `depth_mode` — if on, runs Depth Anything V2 (Kijai) on the image before extracting luma
+- `depth_ckpt` — which Depth Anything V2 safetensors checkpoint to use
 - `invert` — flip the mask (default true; dark = more diffusion)
 - `black_point` / `white_point` — levels remap
 - `gamma`, `brightness`, `contrast` — tone shaping
