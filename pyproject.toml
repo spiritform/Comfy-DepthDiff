@@ -1,0 +1,14 @@
+[project]
+name = "comfy-depthdiff"
+description = "Depth/luma-driven Differential Diffusion mask node for ComfyUI. One node: image in, model + latent with noise mask out."
+version = "1.0.0"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/spiritform/Comfy-DepthDiff"
+
+[tool.comfy]
+PublisherId = "spiritform"
+DisplayName = "DepthDiff"
+Icon = ""
