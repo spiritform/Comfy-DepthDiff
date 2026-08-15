@@ -90,6 +90,7 @@ class DepthDiff:
                 "vae": ("VAE",),
                 "depth_mode": ("BOOLEAN", {"default": False}),
                 "depth_ckpt": (_DEPTH_CKPTS, {"default": "depth_anything_v2_vitl_fp32.safetensors"}),
+                "depth_max_size": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 64}),
                 "invert": ("BOOLEAN", {"default": True}),
                 "black_point": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "white_point": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -111,7 +112,7 @@ class DepthDiff:
     CATEGORY = "conditioning/depthdiff"
     OUTPUT_NODE = True
 
-    def build(self, model, image, vae, depth_mode, depth_ckpt,
+    def build(self, model, image, vae, depth_mode, depth_ckpt, depth_max_size,
               invert, black_point, white_point, gamma,
               brightness, contrast, blur_radius, strength,
               diff_diffusion_multiplier, mask=None):
@@ -119,7 +120,23 @@ class DepthDiff:
 
         mask_source = image
         if depth_mode:
-            mask_source = _run_depth_anything_v2_kijai(image, depth_ckpt)
+            orig_h, orig_w = image.shape[1], image.shape[2]
+            long_side = max(orig_h, orig_w)
+            if long_side > depth_max_size:
+                scale = depth_max_size / long_side
+                new_h = max(1, int(round(orig_h * scale)))
+                new_w = max(1, int(round(orig_w * scale)))
+                small = F.interpolate(
+                    image.permute(0, 3, 1, 2), size=(new_h, new_w),
+                    mode="bilinear", align_corners=False
+                ).permute(0, 2, 3, 1).contiguous()
+                depth_small = _run_depth_anything_v2_kijai(small, depth_ckpt)
+                mask_source = F.interpolate(
+                    depth_small.permute(0, 3, 1, 2), size=(orig_h, orig_w),
+                    mode="bilinear", align_corners=False
+                ).permute(0, 2, 3, 1).contiguous()
+            else:
+                mask_source = _run_depth_anything_v2_kijai(image, depth_ckpt)
 
         m = _to_luma(mask_source).clamp(0.0, 1.0)
 
