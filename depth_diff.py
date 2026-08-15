@@ -92,9 +92,9 @@ class DepthDiff:
                 "depth_ckpt": (_DEPTH_CKPTS, {"default": "depth_anything_v2_vitl_fp32.safetensors"}),
                 "depth_max_size": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 64}),
                 "invert": ("BOOLEAN", {"default": True}),
-                "black_point": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "white_point": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "gamma": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 5.0, "step": 0.05}),
+                "input_black": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 255.0, "step": 1.0}),
+                "input_white": ("FLOAT", {"default": 255.0, "min": 0.0, "max": 255.0, "step": 1.0}),
+                "gamma": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 5.0, "step": 0.01}),
                 "brightness": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.01}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 4.0, "step": 0.05}),
                 "blur_radius": ("INT", {"default": 0, "min": 0, "max": 128, "step": 1}),
@@ -106,14 +106,14 @@ class DepthDiff:
             },
         }
 
-    RETURN_TYPES = ("MODEL", "LATENT", "MASK", "IMAGE")
-    RETURN_NAMES = ("model", "latent", "mask", "preview")
+    RETURN_TYPES = ("MODEL", "LATENT", "MASK")
+    RETURN_NAMES = ("model", "latent", "mask")
     FUNCTION = "build"
     CATEGORY = "conditioning/depthdiff"
     OUTPUT_NODE = True
 
     def build(self, model, image, vae, depth_mode, depth_ckpt, depth_max_size,
-              invert, black_point, white_point, gamma,
+              invert, input_black, input_white, gamma,
               brightness, contrast, blur_radius, strength,
               diff_diffusion_multiplier, mask=None):
         latent = {"samples": vae.encode(image[:, :, :, :3])}
@@ -143,7 +143,7 @@ class DepthDiff:
         if invert:
             m = 1.0 - m
 
-        bp, wp = float(black_point), float(white_point)
+        bp, wp = float(input_black) / 255.0, float(input_white) / 255.0
         if wp <= bp:
             wp = bp + 1e-4
         m = ((m - bp) / (wp - bp)).clamp(0.0, 1.0)
@@ -196,7 +196,7 @@ class DepthDiff:
             img.save(os.path.join(temp_dir, fname), compress_level=1)
             ui_images.append({"filename": fname, "subfolder": "", "type": "temp"})
 
-        return {"ui": {"images": ui_images}, "result": (model_out, latent_out, m, preview)}
+        return {"ui": {"images": ui_images}, "result": (model_out, latent_out, m)}
 
 
 NODE_CLASS_MAPPINGS = {
