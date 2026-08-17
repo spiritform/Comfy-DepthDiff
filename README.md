@@ -36,14 +36,17 @@ If `depth_mode` is off, feed a pre-computed depth or luma map into the `image` i
 - `model` — MODEL (patched with Differential Diffusion internally)
 - `image` — IMAGE (encoded to latent internally; also the mask source)
 - `vae` — VAE (used for the internal encode)
+- `mask` — MASK (optional; gates the final mask, blurred by `mask_blur`)
 
 **Widgets:**
 - `depth_mode` — if on, runs Depth Anything V2 (Kijai) on the image before extracting luma
 - `depth_ckpt` — which Depth Anything V2 safetensors checkpoint to use
+- `depth_max_size` — caps the depth pass long-side (default 1024)
 - `invert` — flip the mask (default true; dark = more diffusion)
-- `black_point` / `white_point` — levels remap
+- `input_black` / `input_white` — levels remap (0–255)
 - `gamma`, `brightness`, `contrast` — tone shaping
-- `blur_radius` — edge softness
+- `image_blur` — edge softness on the depth/luma mask
+- `mask_blur` — edge softness on the optional input mask
 - `strength` — per-pixel clip on the final mask
 - `diff_diffusion_multiplier` — global multiplier on when the mask triggers denoising during sampling (1.0 = default, >1 = more aggressive, <1 = more preservation)
 
@@ -52,7 +55,6 @@ If `depth_mode` is off, feed a pre-computed depth or luma map into the `image` i
 - `model` — patched MODEL → KSampler
 - `latent` — LATENT with `noise_mask` attached → KSampler
 - `mask` — MASK output for downstream use
-- `preview` — IMAGE preview of the final mask (also rendered inline on the node)
 
 ## Wiring
 
