@@ -97,7 +97,8 @@ class DepthDiff:
                 "gamma": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 5.0, "step": 0.01}),
                 "brightness": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0, "step": 0.01}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 4.0, "step": 0.05}),
-                "blur_radius": ("INT", {"default": 0, "min": 0, "max": 128, "step": 1}),
+                "image_blur": ("INT", {"default": 0, "min": 0, "max": 128, "step": 1}),
+                "mask_blur": ("INT", {"default": 0, "min": 0, "max": 128, "step": 1}),
                 "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "diff_diffusion_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.05}),
             },
@@ -114,10 +115,14 @@ class DepthDiff:
 
     def build(self, model, image, vae, depth_mode, depth_ckpt, depth_max_size,
               invert, input_black, input_white, gamma,
-              brightness, contrast, blur_radius, strength,
+              brightness, contrast, image_blur, mask_blur, strength,
               diff_diffusion_multiplier, mask=None):
-        latent = {"samples": vae.encode(image[:, :, :, :3])}
+        if mask is not None:
+            mask = mask if mask.dim() >= 3 else mask.unsqueeze(0)
+            mask = mask.to(torch.float32).clamp(0.0, 1.0)
+            mask = _gaussian_blur(mask, int(mask_blur))
 
+        latent = {"samples": vae.encode(image[:, :, :, :3])}
         mask_source = image
         if depth_mode:
             orig_h, orig_w = image.shape[1], image.shape[2]
@@ -137,7 +142,6 @@ class DepthDiff:
                 ).permute(0, 2, 3, 1).contiguous()
             else:
                 mask_source = _run_depth_anything_v2_kijai(image, depth_ckpt)
-
         m = _to_luma(mask_source).clamp(0.0, 1.0)
 
         if invert:
@@ -157,7 +161,7 @@ class DepthDiff:
             m = m + brightness
         m = m.clamp(0.0, 1.0)
 
-        m = _gaussian_blur(m, int(blur_radius))
+        m = _gaussian_blur(m, int(image_blur))
         m = (m * float(strength)).clamp(0.0, 1.0)
 
         if mask is not None:
